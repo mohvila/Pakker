@@ -341,11 +341,18 @@ $('list').addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 
 // Tekst sendt fra iPhone-genvej via ?t=... eller #t=...
-let incoming='';
-try{const q=new URLSearchParams(location.search);incoming=q.get('t')||q.get('text')||'';
+let incoming='', pasteMode=false;
+try{const q=new URLSearchParams(location.search);incoming=q.get('t')||q.get('text')||'';pasteMode=q.has('indsaet')||q.has('paste');
   if(!incoming&&location.hash.startsWith('#t='))incoming=decodeURIComponent(location.hash.slice(3))}catch(e){}
 render();
 if(incoming){openSheet(incoming);try{history.replaceState(null,'',location.pathname)}catch(e){}}
+else if(pasteMode){
+  // Åbnet fra genvejen, der har kopieret beskeden: ét tryk på knappen henter den ind.
+  openSheet('');
+  $('pasteMsg').innerHTML='<p class="found">Beskeden er kopieret. Tryk på Indsæt fra udklipsholder.</p>';
+  $('pasteBtn').classList.add('primary');
+  try{history.replaceState(null,'',location.pathname)}catch(e){}
+}
 })();
 </script>
 </body>
