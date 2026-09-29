@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pakkeoverblik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E6EBF1; --paper:#FFFFFF; --ink:#16233F; --muted:#5B6781; --line:#CDD5E0;
+  --tape:#F2C230; --tape-ink:#2A2100; --alert:#C8412B; --ok:#2F7D5B; --field:#F3F6FA;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1628; --paper:#18233A; --ink:#E8EDF6; --muted:#9AA6BE; --line:#2B3854;
+    --tape:#E9B923; --tape-ink:#1E1700; --alert:#F0705A; --ok:#5FC196; --field:#101A2E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1628; --paper:#18233A; --ink:#E8EDF6; --muted:#9AA6BE; --line:#2B3854;
+  --tape:#E9B923; --tape-ink:#1E1700; --alert:#F0705A; --ok:#5FC196; --field:#101A2E;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.45;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 110px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+h1{font-stretch:75%;font-weight:800;font-size:2.4rem;line-height:1;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:.9rem;margin-top:6px}
+button{font:inherit;cursor:pointer;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.tab{border:0;background:transparent;border-radius:10px;padding:10px 4px;font-weight:600;font-size:.88rem;line-height:1.2;color:var(--muted)}
+.tab b{display:block;font-size:1.5rem;font-stretch:80%;font-weight:800;color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.tab[aria-selected="true"] b{color:var(--tape)}
+.list{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative}
+.card .top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 0;gap:8px}
+.carrier{font-stretch:85%;font-weight:800;font-size:.95rem}
+.shop{color:var(--muted);font-size:.9rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tn{padding:2px 14px 10px;font-size:.95rem;color:var(--muted);word-break:break-all}
+.tn button{border:0;background:none;padding:0;color:var(--ink);font-weight:600;text-decoration:underline dotted;text-underline-offset:3px}
+.pickup{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:2px dashed var(--line);padding:12px 14px;background:var(--field)}
+.place{font-size:.95rem}
+.deadline{font-size:.85rem;color:var(--muted);margin-top:2px}
+.deadline.warn{color:var(--alert);font-weight:700}
+.code{background:var(--tape);color:var(--tape-ink);border-radius:4px;padding:6px 12px;text-align:center;min-width:92px}
+.code small{display:block;font-size:.72rem;font-weight:600;opacity:.8}
+.code span{font-stretch:125%;font-weight:800;font-size:1.55rem;letter-spacing:.06em;line-height:1.1}
+.note{padding:0 14px 10px;font-size:.9rem;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 14px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 14px;font-weight:600;font-size:.9rem;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.ghost{border-color:transparent;color:var(--muted);padding-left:6px;padding-right:6px}
+.btn.danger{color:var(--alert)}
+.spacer{flex:1}
+.empty{background:var(--paper);border:1px dashed var(--line);border-radius:6px;padding:28px 18px;text-align:center;color:var(--muted)}
+.empty p{margin:0 0 14px}
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));border:0;background:var(--tape);color:var(--tape-ink);font-weight:800;font-stretch:90%;font-size:1.05rem;padding:15px 28px;border-radius:999px;box-shadow:0 6px 20px rgba(22,35,63,.28);z-index:10}
+.sheet-bg{position:fixed;inset:0;background:rgba(10,16,30,.5);display:none;z-index:20}
+.sheet-bg.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:92%;overflow-y:auto;background:var(--paper);border-radius:18px 18px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom,0px));z-index:21;max-width:560px;margin:0 auto;transform:translateY(105%);transition:transform .22s ease}
+.sheet.open{transform:none}
+@media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+.sheet h2{font-stretch:80%;font-weight:800;font-size:1.5rem;margin:0 0 4px}
+.sheet .hint{color:var(--muted);font-size:.9rem;margin:0 0 12px}
+textarea,input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+textarea{min-height:130px;resize:vertical}
+label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:12px 0 4px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row label{margin-top:12px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.found{border-left:4px solid var(--tape);background:var(--field);padding:10px 12px;border-radius:0 8px 8px 0;font-size:.92rem;margin:12px 0 0}
+.found.miss{border-left-color:var(--alert)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top,0px));background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:999px;font-weight:600;font-size:.9rem;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.foot{color:var(--muted);font-size:.8rem;text-align:center;margin-top:26px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Pakker</h1>
+      <div class="sub" id="summary"></div>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="paavej"><b id="c-paavej">0</b>På vej</button>
+    <button class="tab" role="tab" data-tab="klar"><b id="c-klar">0</b>Klar til afhentning</button>
+    <button class="tab" role="tab" data-tab="hentet"><b id="c-hentet">0</b>Hentet</button>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="foot">Prototype. Pakkerne gemmes kun i denne browser.</div>
+</div>
+
+<button class="fab" id="addBtn">Tilføj pakke</button>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div id="stepPaste">
+    <h2 id="sheetTitle">Tilføj pakke</h2>
+    <p class="hint">Indsæt teksten fra en mail eller SMS om pakken.</p>
+    <textarea id="raw" placeholder="Fx: Din pakke fra Zalando er klar til afhentning i Netto Vesterbrogade. Kode 4821. Hentes senest 28.11. Trackingnummer 12345678901"></textarea>
+    <div class="btnrow">
+      <button class="btn" id="pasteBtn">Indsæt fra udklipsholder</button>
+      <button class="btn ghost" id="sampleBtn">Brug eksempel</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="parseBtn">Find pakke</button>
+    </div>
+    <div id="pasteMsg"></div>
+  </div>
+
+  <div id="stepForm" hidden>
+    <h2 id="formTitle">Tjek oplysningerne</h2>
+    <div id="foundMsg"></div>
+    <div class="row">
+      <div><label for="f-carrier">Fragtfirma</label>
+        <select id="f-carrier"></select></div>
+      <div><label for="f-status">Status</label>
+        <select id="f-status">
+          <option value="paavej">På vej</option>
+          <option value="klar">Klar til afhentning</option>
+          <option value="hentet">Hentet</option>
+        </select></div>
+    </div>
+    <label for="f-tn">Trackingnummer</label>
+    <input id="f-tn" autocomplete="off" autocapitalize="characters">
+    <label for="f-shop">Butik</label>
+    <input id="f-shop" autocomplete="off">
+    <label for="f-place">Afhentningssted</label>
+    <input id="f-place" autocomplete="off">
+    <div class="row">
+      <div><label for="f-code">Afhentningskode</label>
+        <input id="f-code" inputmode="numeric" autocomplete="off"></div>
+      <div><label for="f-deadline">Hentes senest</label>
+        <input id="f-deadline" type="date"></div>
+    </div>
+    <label for="f-note">Note</label>
+    <input id="f-note" autocomplete="off" placeholder="Fx indhold eller hvem der henter">
+    <div class="btnrow">
+      <button class="btn ghost" id="cancelBtn">Annullér</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="saveBtn">Gem pakke</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+const KEY='pakkeoverblik.v1';
+const CARRIERS={
+  postnord:{name:'PostNord',kw:/postnord|post ?danmark|pakkeboks|døgnpost/i,dom:/postnord\./i,url:n=>'https://tracking.postnord.com/dk/?id='+encodeURIComponent(n)},
+  gls:{name:'GLS',kw:/\bgls\b/i,dom:/gls-group\.|gls\.dk/i,url:n=>'https://gls-group.com/DK/da/find-pakke?match='+encodeURIComponent(n)},
+  dao:{name:'DAO',kw:/\bdao\b/i,dom:/dao\.as/i,url:n=>'https://www.dao.as/privat/find-din-pakke?stregkode='+encodeURIComponent(n)},
+  bring:{name:'Bring',kw:/\bbring\b/i,dom:/bring\.(dk|com|no|se)/i,url:n=>'https://tracking.bring.com/tracking/'+encodeURIComponent(n)},
+  budbee:{name:'Budbee',kw:/budbee/i,dom:/budbee\./i,url:null},
+  instabox:{name:'Instabox',kw:/instabox/i,dom:/instabox\./i,url:null},
+  ukendt:{name:'Ukendt fragtfirma',kw:null,dom:null,url:null}
+};
+const MONTHS=['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december'];
+let packages=load(), tab='paavej', editingId=null, pendingUrl=null;
+
+function load(){try{const v=localStorage.getItem(KEY);return v?JSON.parse(v):[]}catch(e){return[]}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(packages))}catch(e){toast('Kunne ikke gemme i browseren')}}
+const $=id=>document.getElementById(id);
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800)}
+
+/* ---------- Udtræk ---------- */
+function parse(text){
+  const r={carrier:'ukendt',tn:'',shop:'',place:'',code:'',deadline:'',status:'paavej',url:''};
+  const urls=text.match(/https?:\/\/[^\s<>"')]+/gi)||[];
+  // Fragtfirma: domæner vejer tungest, derefter nøgleord
+  for(const u of urls){for(const k in CARRIERS){const c=CARRIERS[k];if(c.dom&&c.dom.test(u)){r.carrier=k;r.url=u;break}}if(r.carrier!=='ukendt')break}
+  if(r.carrier==='ukendt'){for(const k in CARRIERS){const c=CARRIERS[k];if(c.kw&&c.kw.test(text)){r.carrier=k;break}}}
+  // Trackingnummer fra links
+  for(const u of urls){
+    try{const p=new URL(u);
+      for(const key of ['id','match','stregkode','parcelNumber','parcelnumber','trackingNumber','trackingnumber','tracking','shipmentId','consignmentId','q','t']){
+        const v=p.searchParams.get(key);if(v&&/\d/.test(v)&&/^[A-Za-z0-9-]{6,35}$/.test(v)){r.tn=v.replace(/-/g,'').toUpperCase();break}}
+      if(!r.tn&&(CARRIERS[r.carrier].dom||{test:()=>false}).test(u)){
+        const seg=p.pathname.split('/').filter(Boolean).pop()||'';
+        if(/\d/.test(seg)&&/^[A-Za-z0-9-]{6,35}$/.test(seg))r.tn=seg.replace(/-/g,'').toUpperCase()}
+    }catch(e){}
+    if(r.tn)break}
+  // Trackingnummer ved nøgleord
+  if(!r.tn){const m=text.match(/(tracking\s*(?:nummer|nr\.?|number|id)?|track\s*(?:&|and|og)?\s*trace|sporingsnummer|forsendelsesnummer|pakkenummer|pakkenr\.?|stregkode|kollinummer|kolli-?id)\s*[:#.\-]?\s*([A-Z0-9][A-Z0-9 \-]{4,34}[A-Z0-9])/i);
+    if(m){const v=m[2].split(/\s{2,}|\n/)[0].replace(/[\s-]/g,'');if(/\d/.test(v)&&v.length>=6&&v.length<=35)r.tn=v.toUpperCase()}}
+  // Trackingnummer ud fra kendte formater
+  if(!r.tn){const m=text.match(/\b[A-Z]{2}\d{9}[A-Z]{2}\b/)||text.match(/\b00\d{18}\b/)||text.match(/\b\d{11,20}\b/);if(m)r.tn=m[0]}
+  // Afhentningskode
+  const code=text.match(/(afhentningskode|udleveringskode|pinkode|pin-kode|pin|kode|code)\s*(?:er|:|-)?\s*[:\-]?\s*(\d{3,8})\b/i);
+  if(code&&code[2]!==r.tn)r.code=code[2];
+  // Frist
+  r.deadline=findDate(text);
+  // Afhentningssted
+  const placeRx=/(pakkeshop|pakkeboks|afhentningssted|udleveringssted|posthus|døgnpost|parcel\s?locker|netto|føtex|rema|coop|meny|spar\b|circle ?k|q8|7-eleven|shell|kvickly|superbrugsen|dagli.?brugsen|lidl|bilka|min købmand)/i;
+  const lines=text.split(/\n|(?<=[.!?])\s+/);
+  for(const l of lines){if(placeRx.test(l)){
+    let s=l.replace(/https?:\S+/g,'').trim();
+    const lab=s.match(/(?:afhentningssted|udleveringssted|pakkeshop|pakkeboks)\s*:\s*(.+)/i);
+    if(lab)s=lab[1];else{const i=s.search(/\b(i|hos|ved)\s+(?=[A-ZÆØÅ0-9])/);if(i>=0)s=s.slice(i).replace(/^(i|hos|ved)\s+/,'')}
+    s=s.replace(/\s*(\.|,)?\s*(kode|hentes|senest|frist|tracking).*$/i,'').replace(/[.,;:]+$/,'').trim();
+    if(s.length>2){r.place=s.slice(0,80);break}}}
+  // Butik
+  const shop=text.match(/(?:ordre|bestilling|køb|pakke|forsendelse|levering)\s+(?:fra|hos)\s+([A-ZÆØÅ0-9][\wÆØÅæøå&.\-]*(?:\s+[A-ZÆØÅ][\wÆØÅæøå&.\-]*){0,2})/);
+  if(shop&&!/postnord|gls|dao|bring|budbee|instabox/i.test(shop[1]))r.shop=shop[1].replace(/[.,]$/,'');
+  // Status
+  if(/klar til afhentning|kan (nu )?(af)?hentes|ligger klar|klar til at blive hentet|er ankommet til (din |pakke)|er klar i/i.test(text))r.status='klar';
+  else if(/er (blevet )?leveret|leveret til|afleveret ved|er afhentet/i.test(text))r.status='hentet';
+  if(r.place&&r.status==='paavej'&&(r.code||r.deadline))r.status='klar';
+  return r;
+}
+function findDate(text){
+  const now=new Date();
+  const ctx='(?:senest|inden|før|frist|til og med|t\\.o\\.m\\.?|indtil|hentes)';
+  let m=text.match(new RegExp(ctx+'[^\\d\\n]{0,25}(\\d{1,2})[./-](\\d{1,2})(?:[./-](\\d{2,4}))?','i'));
+  let d,mo,y;
+  if(m){d=+m[1];mo=+m[2];y=m[3]?+m[3]:null}
+  else{m=text.match(new RegExp(ctx+'[^\\d\\n]{0,25}(\\d{1,2})\\.?\\s*('+MONTHS.join('|')+'|'+MONTHS.map(x=>x.slice(0,3)).join('|')+')\\.?(?:\\s+(\\d{4}))?','i'));
+    if(m){d=+m[1];mo=MONTHS.findIndex(x=>x.startsWith(m[2].toLowerCase().slice(0,3)))+1;y=m[3]?+m[3]:null}}
+  if(!m||!d||!mo||mo>12||d>31)return'';
+  if(y&&y<100)y+=2000;
+  if(!y){y=now.getFullYear();const cand=new Date(y,mo-1,d);if(cand<new Date(now.getTime()-60*864e5))y++}
+  return y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+
+/* ---------- Visning ---------- */
+function daysLeft(iso){if(!iso)return null;const t=new Date();t.setHours(0,0,0,0);const d=new Date(iso+'T00:00:00');return Math.round((d-t)/864e5)}
+function deadlineText(iso){const n=daysLeft(iso);if(n===null)return null;
+  const f=new Date(iso+'T00:00:00').toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+  if(n<0)return{t:'Fristen er overskredet ('+f+')',w:true};
+  if(n===0)return{t:'Skal hentes i dag',w:true};
+  if(n===1)return{t:'Skal hentes senest i morgen',w:true};
+  return{t:'Hentes senest '+f,w:n<=2}}
+function trackUrl(p){const c=CARRIERS[p.carrier]||CARRIERS.ukendt;if(c.url&&p.tn)return c.url(p.tn);return p.url||''}
+const NEXT={paavej:['klar','Klar til afhentning'],klar:['hentet','Markér som hentet'],hentet:['klar','Flyt tilbage']};
+
+function render(){
+  const counts={paavej:0,klar:0,hentet:0};packages.forEach(p=>counts[p.status]++);
+  for(const k in counts)$('c-'+k).textContent=counts[k];
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab));
+  const urgent=packages.filter(p=>p.status==='klar'&&daysLeft(p.deadline)!==null&&daysLeft(p.deadline)<=1).length;
+  $('summary').textContent=counts.klar?(counts.klar+(counts.klar===1?' pakke venter':' pakker venter')+' på dig'+(urgent?', '+urgent+' med frist senest i morgen':'')):(counts.paavej?counts.paavej+' på vej':'Ingen pakker endnu');
+  let items=packages.filter(p=>p.status===tab);
+  if(tab==='klar')items.sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999'));
+  else items.sort((a,b)=>b.updated-a.updated);
+  const list=$('list');
+  if(!items.length){
+    const msg={paavej:'Ingen pakker på vej. Del en forsendelsesmail eller SMS for at tilføje en.',klar:'Intet venter på at blive hentet.',hentet:'Pakker du har hentet, vises her.'}[tab];
+    list.innerHTML='<div class="empty"><p>'+msg+'</p>'+(tab==='paavej'?'<button class="btn primary" data-act="add">Tilføj pakke</button>':'')+'</div>';return}
+  list.innerHTML=items.map(p=>{
+    const c=CARRIERS[p.carrier]||CARRIERS.ukendt, dl=deadlineText(p.deadline), u=trackUrl(p), nx=NEXT[p.status];
+    const showPickup=p.status!=='hentet'&&(p.place||p.code||p.deadline);
+    return '<article class="card">'+
+      '<div class="top"><span class="carrier">'+esc(c.name)+'</span><span class="shop">'+esc(p.shop)+'</span></div>'+
+      '<div class="tn">'+(p.tn?'<button data-act="copy" data-id="'+p.id+'" aria-label="Kopiér trackingnummer">'+esc(p.tn)+'</button>':'Intet trackingnummer')+'</div>'+
+      (showPickup?'<div class="pickup"><div><div class="place">'+(esc(p.place)||'Afhentningssted ikke angivet')+'</div>'+(dl?'<div class="deadline'+(dl.w?' warn':'')+'">'+esc(dl.t)+'</div>':'')+'</div>'+
+        (p.code?'<div class="code"><small>Kode</small><span>'+esc(p.code)+'</span></div>':'')+'</div>':'')+
+      (p.note?'<div class="note">'+esc(p.note)+'</div>':'')+
+      '<div class="actions"><button class="btn primary" data-act="move" data-to="'+nx[0]+'" data-id="'+p.id+'">'+nx[1]+'</button>'+
+      (u?'<a class="btn" href="'+esc(u)+'" target="_blank" rel="noopener">Følg hos '+esc(c.name==='Ukendt fragtfirma'?'fragtfirma':c.name)+'</a>':'')+
+      '<span class="spacer"></span><button class="btn ghost" data-act="edit" data-id="'+p.id+'">Redigér</button>'+
+      '<button class="btn ghost danger" data-act="del" data-id="'+p.id+'">Slet</button></div></article>'}).join('');
+}
+
+/* ---------- Ark ---------- */
+function openSheet(prefill){
+  editingId=null;pendingUrl=null;$('raw').value=prefill||'';$('pasteMsg').innerHTML='';
+  $('stepPaste').hidden=false;$('stepForm').hidden=true;
+  $('sheetBg').classList.add('open');$('sheet').classList.add('open');
+  if(prefill)runParse();else setTimeout(()=>$('raw').focus(),250)}
+function closeSheet(){$('sheetBg').classList.remove('open');$('sheet').classList.remove('open')}
+function fillForm(p){
+  $('f-carrier').innerHTML=Object.keys(CARRIERS).map(k=>'<option value="'+k+'">'+CARRIERS[k].name+'</option>').join('');
+  $('f-carrier').value=p.carrier||'ukendt';$('f-status').value=p.status||'paavej';
+  $('f-tn').value=p.tn||'';$('f-shop').value=p.shop||'';$('f-place').value=p.place||'';
+  $('f-code').value=p.code||'';$('f-deadline').value=p.deadline||'';$('f-note').value=p.note||'';
+  $('stepPaste').hidden=true;$('stepForm').hidden=false}
+function runParse(){
+  const text=$('raw').value.trim();
+  if(!text){$('pasteMsg').innerHTML='<p class="found miss">Feltet er tomt. Indsæt teksten fra en mail eller SMS først.</p>';return}
+  const r=parse(text);pendingUrl=r.url;
+  const existing=r.tn&&packages.find(p=>p.tn===r.tn);
+  const found=[r.carrier!=='ukendt'&&'fragtfirma',r.tn&&'trackingnummer',r.place&&'afhentningssted',r.code&&'kode',r.deadline&&'frist'].filter(Boolean);
+  if(existing){
+    editingId=existing.id;
+    const merged=Object.assign({},existing);
+    ['place','code','deadline','shop'].forEach(k=>{if(r[k])merged[k]=r[k]});
+    if(r.carrier!=='ukendt')merged.carrier=r.carrier;
+    if(r.status!=='paavej')merged.status=r.status;
+    fillForm(merged);$('formTitle').textContent='Opdatér pakke';
+    $('foundMsg').innerHTML='<p class="found">Pakken findes allerede. Nye oplysninger er flettet ind.</p>';
+  }else{
+    fillForm(r);$('formTitle').textContent='Tjek oplysningerne';
+    $('foundMsg').innerHTML=found.length?'<p class="found">Fandt '+found.join(', ').replace(/, ([^,]*)$/,' og $1')+'. Ret det, der ikke passer.</p>':'<p class="found miss">Fandt ingen pakkeoplysninger. Udfyld felterne selv, eller gå tilbage og prøv en anden tekst.</p>';
+  }
+  $('saveBtn').textContent=existing?'Gem ændringer':'Gem pakke';
+}
+function saveForm(){
+  const data={carrier:$('f-carrier').value,status:$('f-status').value,tn:$('f-tn').value.replace(/\s/g,'').toUpperCase(),
+    shop:$('f-shop').value.trim(),place:$('f-place').value.trim(),code:$('f-code').value.trim(),deadline:$('f-deadline').value,note:$('f-note').value.trim(),updated:Date.now()};
+  if(!data.tn&&!data.shop&&!data.place){toast('Udfyld mindst trackingnummer, butik eller afhentningssted');return}
+  if(editingId){const p=packages.find(x=>x.id===editingId);Object.assign(p,data);if(pendingUrl&&!p.url)p.url=pendingUrl;toast('Pakke opdateret')}
+  else{packages.push(Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),url:pendingUrl||''},data));toast('Pakke gemt')}
+  save();tab=data.status;closeSheet();render()}
+
+/* ---------- Hændelser ---------- */
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render()}));
+$('addBtn').addEventListener('click',()=>openSheet(''));
+$('sheetBg').addEventListener('click',closeSheet);
+$('cancelBtn').addEventListener('click',closeSheet);
+$('parseBtn').addEventListener('click',runParse);
+$('saveBtn').addEventListener('click',saveForm);
+$('sampleBtn').addEventListener('click',()=>{$('raw').value='GLS: Din pakke fra Zalando er klar til afhentning i Netto, Vesterbrogade 112, 1620 København V. Afhentningskode: 4821. Pakken skal hentes senest '+(()=>{const d=new Date(Date.now()+2*864e5);return d.getDate()+'.'+(d.getMonth()+1)})()+'. Trackingnummer: 12345678901';runParse()});
+$('pasteBtn').addEventListener('click',async()=>{
+  try{const t=await navigator.clipboard.readText();if(t){$('raw').value=t;runParse()}else throw 0}
+  catch(e){$('pasteMsg').innerHTML='<p class="found miss">Browseren gav ikke adgang til udklipsholderen. Tryk og hold i feltet og vælg Indsæt.</p>';$('raw').focus()}});
+$('list').addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const act=b.dataset.act, p=packages.find(x=>x.id===b.dataset.id);
+  if(act==='add')return openSheet('');
+  if(!p)return;
+  if(act==='move'){p.status=b.dataset.to;p.updated=Date.now();save();render();toast(p.status==='hentet'?'Markeret som hentet':p.status==='klar'?'Flyttet til klar til afhentning':'Flyttet')}
+  if(act==='edit'){openSheet('');editingId=p.id;fillForm(p);$('formTitle').textContent='Redigér pakke';$('foundMsg').innerHTML='';$('saveBtn').textContent='Gem ændringer'}
+  if(act==='del'){if(confirm('Slet denne pakke?')){packages=packages.filter(x=>x.id!==p.id);save();render();toast('Pakke slettet')}}
+  if(act==='copy'){try{navigator.clipboard.writeText(p.tn).then(()=>toast('Trackingnummer kopieret'),()=>toast(p.tn))}catch(err){toast(p.tn)}}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+
+// Tekst sendt fra iPhone-genvej via ?t=... eller #t=...
+let incoming='';
+try{const q=new URLSearchParams(location.search);incoming=q.get('t')||q.get('text')||'';
+  if(!incoming&&location.hash.startsWith('#t='))incoming=decodeURIComponent(location.hash.slice(3))}catch(e){}
+render();
+if(incoming){openSheet(incoming);try{history.replaceState(null,'',location.pathname)}catch(e){}}
+})();
+</script>
+</body>
+</html>
