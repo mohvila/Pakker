@@ -208,8 +208,24 @@ function parse(text){
     }catch(e){}
     if(r.tn)break}
   // Trackingnummer ved nøgleord
-  if(!r.tn){const m=text.match(/(tracking\s*(?:nummer|nr\.?|number|id)?|track\s*(?:&|and|og)?\s*trace|sporingsnummer|forsendelsesnummer|pakkenummer|pakkenr\.?|stregkode|kollinummer|kolli-?id)\s*[:#.\-]?\s*([A-Z0-9][A-Z0-9 \-]{4,34}[A-Z0-9])/i);
-    if(m){const v=m[2].split(/\s{2,}|\n/)[0].replace(/[\s-]/g,'');if(/\d/.test(v)&&v.length>=6&&v.length<=35)r.tn=v.toUpperCase()}}
+  if(!r.tn){
+    // Find nøgleordet, spring fyldord som "er", "nr." og ":" over, og tag det første ord med tal i.
+    const kw=/(tracking[\s-]*(?:nummer|nr\.?|number|no\.?|id|kode)?|track\s*(?:&|and|og)?\s*trace(?:[\s-]*nummer)?|sporings[\s-]*(?:nummer|nr\.?|kode)|forsendelses[\s-]*(?:nummer|nr\.?|id)|pakke[\s-]*(?:nummer|nr\.?|id)|shipment\s*(?:number|id)|parcel\s*(?:number|id)|stregkode|kolli[\s-]*(?:nummer|nr\.?|id))/ig;
+    let k;
+    while(!r.tn&&(k=kw.exec(text))){
+      const after=text.slice(k.index+k[0].length,k.index+k[0].length+80).split('\n')[0];
+      const toks=after.split(/\s+/).map(t=>t.replace(/^[:#(\[]+|[.,;:)\]!]+$/g,'')).filter(Boolean);
+      let i=0;
+      while(i<toks.length&&i<4&&!/\d/.test(toks[i]))i++;
+      if(i<toks.length&&/\d/.test(toks[i])&&/^[A-Za-z0-9-]+$/.test(toks[i])){
+        let v=toks[i];
+        // Tal skrevet i grupper, fx "0037 0712 3456"
+        for(let j=i+1;j<toks.length&&/^\d+$/.test(v.replace(/-/g,''))&&/^\d{3,}$/.test(toks[j]);j++)v+=toks[j];
+        v=v.replace(/-/g,'').toUpperCase();
+        if(v.length>=6&&v.length<=35)r.tn=v;
+      }
+    }
+  }
   // Trackingnummer ud fra kendte formater
   if(!r.tn){const m=text.match(/\b[A-Z]{2}\d{9}[A-Z]{2}\b/)||text.match(/\b00\d{18}\b/)||text.match(/\b\d{11,20}\b/);if(m)r.tn=m[0]}
   // Afhentningskode
