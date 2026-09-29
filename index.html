@@ -125,7 +125,7 @@ label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:1
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
   <div id="stepPaste">
     <h2 id="sheetTitle">Tilføj pakke</h2>
-    <p class="hint">Indsæt teksten fra en mail eller SMS om pakken.</p>
+    <p class="hint" id="sheetHint">Indsæt teksten fra en mail eller SMS om pakken.</p>
     <textarea id="raw" placeholder="Fx: Din pakke fra Zalando er klar til afhentning i Netto Vesterbrogade. Kode 4821. Hentes senest 28.11. Trackingnummer 12345678901"></textarea>
     <div class="btnrow">
       <button class="btn" id="pasteBtn">Indsæt fra udklipsholder</button>
@@ -193,7 +193,7 @@ const CARRIERS={
   ukendt:{name:'Ukendt fragtfirma',kw:null,dom:null,url:null}
 };
 const MONTHS=['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december'];
-let packages=load(), tab='paavej', editingId=null, pendingUrl=null;
+let packages=load(), tab='paavej', editingId=null, pendingUrl=null, targetId=null;
 
 function load(){try{const v=localStorage.getItem(KEY);return v?JSON.parse(v):[]}catch(e){return[]}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(packages))}catch(e){toast('Kunne ikke gemme i browseren')}}
@@ -250,7 +250,8 @@ function parse(text){
   for(const l of lines){if(placeRx.test(l)){
     let s=l.replace(/https?:\S+/g,'').trim();
     const lab=s.match(/(?:afhentningssted|udleveringssted|pakkeshop|pakkeboks)\s*:\s*(.+)/i);
-    if(lab)s=lab[1];else{const i=s.search(/\b(i|hos|ved)\s+(?=[A-ZÆØÅ0-9])/);if(i>=0)s=s.slice(i).replace(/^(i|hos|ved)\s+/,'')}
+    const after=s.match(/(?:pakkeshop(?:pen)?|pakkeboks(?:en)?|udleveringssted(?:et)?|posthus(?:et)?)\s+(?:hos\s+|i\s+|ved\s+|på\s+)?([A-ZÆØÅ0-9][^\n]*)/);
+    if(lab)s=lab[1];else if(after)s=after[1];else{const i=s.search(/\b(i|hos|ved)\s+(?=[A-ZÆØÅ0-9])/);if(i>=0)s=s.slice(i).replace(/^(i|hos|ved)\s+/,'')}
     s=s.replace(/\s*(\.|,)?\s*(kode|hentes|senest|frist|tracking).*$/i,'').replace(/[.,;:]+$/,'').trim();
     if(s.length>2){r.place=s.slice(0,80);break}}}
   // Butik
@@ -258,8 +259,11 @@ function parse(text){
   if(shop&&!/postnord|gls|dao|bring|budbee|instabox/i.test(shop[1]))r.shop=shop[1].replace(/[.,]$/,'');
   if(r.shop)r.name='Pakke fra '+r.shop;
   // Status
-  if(/klar til afhentning|kan (nu )?(af)?hentes|ligger klar|klar til at blive hentet|er ankommet til (din |pakke)|er klar i/i.test(text))r.status='klar';
-  else if(/er (blevet )?leveret|leveret til|afleveret ved|er afhentet/i.test(text))r.status='hentet';
+  // "Leveret til pakkeshop" betyder klar, ikke afhentet. Afhentet vinder, hvis begge dele står i teksten (fx en hel trackinghistorik).
+  const toShop=/(leveret|afleveret|ankommet) til (din |en |nærmeste )?(pakkeshop|pakkeboks|udleveringssted|posthus|afhentningssted|pakkeautomat)/gi;
+  const rest=text.replace(toShop,'');
+  if(/er (blevet )?(leveret|udleveret|afhentet)|udleveret til|afhentet af|pakken er afhentet|leveret til (dig|modtager|adressen|døren)|afleveret ved|\bdelivered\b|picked up|collected/i.test(rest))r.status='hentet';
+  else if(toShop.test(text)||/klar til afhentning|kan (nu )?(af)?hentes|ligger klar|klar til at blive hentet|er ankommet til (din |pakke)|er klar i|ready for pick ?up|available for pick ?up|awaiting collection/i.test(text))r.status='klar';
   if(r.place&&r.status==='paavej'&&(r.code||r.deadline))r.status='klar';
   return r;
 }
@@ -314,13 +318,18 @@ function render(){
       (p.note?'<div class="note">'+esc(p.note)+'</div>':'')+
       '<div class="actions"><button class="btn primary" data-act="move" data-to="'+nx[0]+'" data-id="'+p.id+'">'+nx[1]+'</button>'+
       (u?'<a class="btn" href="'+esc(u)+'" target="_blank" rel="noopener">Følg hos '+esc(c.name==='Ukendt fragtfirma'?'fragtfirma':c.name)+'</a>':'')+
+      (p.status!=='hentet'?'<button class="btn" data-act="fromtext" data-id="'+p.id+'">Opdater fra tekst</button>':'')+
       '<span class="spacer"></span><button class="btn ghost" data-act="edit" data-id="'+p.id+'">Redigér</button>'+
       '<button class="btn ghost danger" data-act="del" data-id="'+p.id+'">Slet</button></div></article>'}).join('');
 }
 
 /* ---------- Ark ---------- */
-function openSheet(prefill){
-  editingId=null;pendingUrl=null;$('raw').value=prefill||'';$('pasteMsg').innerHTML='';
+function openSheet(prefill,target){
+  editingId=null;pendingUrl=null;targetId=target||null;$('raw').value=prefill||'';$('pasteMsg').innerHTML='';
+  const tp=targetId&&packages.find(x=>x.id===targetId);
+  $('sheetTitle').textContent=tp?'Opdater '+(tp.name||'pakke'):'Tilføj pakke';
+  $('sheetHint').textContent=tp?'Kopiér status-teksten fra fragtfirmaets side, og indsæt den her.':'Indsæt teksten fra en mail eller SMS om pakken.';
+  $('parseBtn').textContent=tp?'Opdater status':'Find pakke';
   $('stepPaste').hidden=false;$('stepForm').hidden=true;
   $('sheetBg').classList.add('open');$('sheet').classList.add('open');
   if(prefill)runParse();else setTimeout(()=>$('raw').focus(),250)}
@@ -336,6 +345,21 @@ function runParse(){
   const text=$('raw').value.trim();
   if(!text){$('pasteMsg').innerHTML='<p class="found miss">Feltet er tomt. Indsæt teksten fra en mail eller SMS først.</p>';return}
   const r=parse(text);pendingUrl=r.url;
+  const tp=targetId&&packages.find(x=>x.id===targetId);
+  if(tp){
+    // Opdater en bestemt pakke ud fra tekst fra fragtfirmaets side. Pakkenummeret behøver ikke stå i teksten.
+    editingId=tp.id;
+    const merged=Object.assign({},tp);
+    const moved=RANK[r.status]>RANK[tp.status];
+    if(moved)merged.status=r.status;
+    ['place','code','deadline'].forEach(k=>{if(r[k])merged[k]=r[k]});
+    if(!tp.tn&&r.tn)merged.tn=r.tn;
+    if((!tp.carrier||tp.carrier==='ukendt')&&r.carrier!=='ukendt')merged.carrier=r.carrier;
+    fillForm(merged);$('formTitle').textContent='Opdater pakke';$('saveBtn').textContent='Gem ændringer';
+    const lbl={paavej:'På vej',klar:'Klar',hentet:'Afhentet'};
+    $('foundMsg').innerHTML=moved?'<p class="found">Ny status: '+lbl[r.status]+'. Tjek og gem.</p>':'<p class="found miss">Fandt ingen ny status i teksten. Du kan vælge status selv.</p>';
+    return;
+  }
   const existing=r.tn&&packages.find(p=>p.tn===r.tn);
   const found=[r.carrier!=='ukendt'&&'fragtfirma',r.tn&&'pakkenummer',r.code&&'bekræftelseskode',r.place&&'afhentningssted',r.deadline&&'frist'].filter(Boolean);
   if(existing){
@@ -429,6 +453,11 @@ $('list').addEventListener('click',e=>{
   if(act==='add')return openSheet('');
   if(!p)return;
   if(act==='move'){p.status=b.dataset.to;p.updated=Date.now();save();render();toast(p.status==='hentet'?'Markeret som hentet':p.status==='klar'?'Flyttet til klar til afhentning':'Flyttet')}
+  if(act==='fromtext'){
+    // Knaptrykket giver lov til at læse udklipsholderen, så teksten hentes med det samme, hvis den er kopieret.
+    const go=t=>openSheet(t||'',p.id);
+    try{navigator.clipboard.readText().then(t=>go((t||'').trim()),()=>go(''))}catch(err){go('')}
+    return}
   if(act==='edit'){openSheet('');editingId=p.id;fillForm(p);$('formTitle').textContent='Redigér pakke';$('foundMsg').innerHTML='';$('saveBtn').textContent='Gem ændringer'}
   if(act==='del'){if(confirm('Slet denne pakke?')){packages=packages.filter(x=>x.id!==p.id);save();render();toast('Pakke slettet')}}
   if(act==='copy'){try{navigator.clipboard.writeText(p.tn).then(()=>toast('Pakkenummer kopieret'),()=>toast(p.tn))}catch(err){toast(p.tn)}}
