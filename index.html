@@ -53,6 +53,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .facts .code{text-align:center}
 details.more{display:block;width:100%;min-width:0;margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
 details.more summary{cursor:pointer;font-weight:600;color:var(--muted);padding:8px 0}
+.refresh{flex:none;align-self:center}
+.refresh[aria-busy="true"]{opacity:.6;pointer-events:none}
+.trk{display:flex;gap:6px;align-items:baseline;padding:0 14px 4px;font-size:.88rem;color:var(--muted)}
+.trk b{color:var(--ink);font-weight:700}
+.trk.alert b{color:var(--alert)}
+.trk.ok b{color:var(--ok)}
 .shop{color:var(--muted);font-size:.9rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tn{padding:2px 14px 10px;font-size:.95rem;color:var(--muted);word-break:break-all}
 .tn button{border:0;background:none;padding:0;color:var(--ink);font-weight:600;text-decoration:underline dotted;text-underline-offset:3px}
@@ -100,6 +106,7 @@ label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:1
       <h1>Pakker</h1>
       <div class="sub" id="summary"></div>
     </div>
+    <button class="btn refresh" id="refreshBtn">Opdater alle</button>
   </header>
 
   <div class="tabs" role="tablist">
@@ -172,6 +179,10 @@ label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:1
 <script>
 (function(){
 const KEY='pakkeoverblik.v1';
+// Adressen på mellemleddet (Cloudflare Worker), der henter status hos fragtfirmaerne.
+// Tom = automatisk status er ikke sat op endnu.
+const TRACK_API='';
+const LAST_KEY='pakkeoverblik.lastRefresh';
 const CARRIERS={
   postnord:{name:'PostNord',kw:/postnord|post ?danmark|pakkeboks|døgnpost/i,dom:/postnord\./i,url:n=>'https://tracking.postnord.com/dk/?id='+encodeURIComponent(n)},
   gls:{name:'GLS',kw:/\bgls\b/i,dom:/gls-group\.|gls\.dk/i,url:n=>'https://gls-group.com/DK/da/find-pakke?match='+encodeURIComponent(n)},
@@ -296,6 +307,7 @@ function render(){
     const title=p.name||(p.shop?'Pakke fra '+p.shop:'Pakke uden navn');
     return '<article class="card">'+
       '<div class="top"><span class="pname">'+esc(title)+'</span><span class="carrier">'+esc(c.name)+'</span></div>'+
+      trackLine(p)+
       '<dl class="facts"><div><dt>Pakkenummer</dt><dd>'+(p.tn?'<button data-act="copy" data-id="'+p.id+'" aria-label="Kopiér pakkenummer">'+esc(p.tn)+'</button>':'<span class="nocode">Ikke angivet</span>')+'</dd></div>'+
       '<div><dt>Bekræftelseskode</dt><dd>'+(p.code?'<div class="code"><span>'+esc(p.code)+'</span></div>':'<span class="nocode">Ingen</span>')+'</dd></div></dl>'+
       (showPickup?'<div class="pickup"><div><div class="place">'+(esc(p.place)||'Afhentningssted ikke angivet')+'</div>'+(dl?'<div class="deadline'+(dl.w?' warn':'')+'">'+esc(dl.t)+'</div>':'')+'</div></div>':'')+
@@ -346,9 +358,61 @@ function saveForm(){
   if(!data.name&&!data.tn){toast('Giv pakken et navn eller udfyld pakkenummer');$('f-name').focus();return}
   if(editingId){const p=packages.find(x=>x.id===editingId);Object.assign(p,data);if(pendingUrl&&!p.url)p.url=pendingUrl;toast('Pakke opdateret')}
   else{packages.push(Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),url:pendingUrl||''},data));toast('Pakke gemt')}
-  save();tab=data.status;closeSheet();render()}
+  save();tab=data.status;closeSheet();render();
+  if(data.tn&&data.status!=='hentet')refreshAll(false)}
+
+/* ---------- Automatisk status ---------- */
+const TRK={
+  NotFound:['Ikke fundet hos fragtfirmaet endnu',''],
+  Registered:['Tilmeldt, status hentes snart',''],
+  InfoReceived:['Afsender har oprettet forsendelsen',''],
+  InTransit:['Undervejs',''],
+  OutForDelivery:['Ude til levering',''],
+  AvailableForPickup:['Klar til afhentning','ok'],
+  Delivered:['Leveret / afhentet','ok'],
+  DeliveryFailure:['Levering mislykkedes','alert'],
+  Exception:['Problem med forsendelsen','alert'],
+  Expired:['Ingen nye oplysninger i lang tid','alert'],
+  Error:['Kunne ikke spores','alert']
+};
+const RANK={paavej:0,klar:1,hentet:2};
+function statusFromTrack(st){if(st==='AvailableForPickup')return'klar';if(st==='Delivered')return'hentet';return null}
+function fmtTime(ms){if(!ms)return'';const d=new Date(ms);const today=new Date().toDateString()===d.toDateString();
+  return today?'kl. '+d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('da-DK',{day:'numeric',month:'short'})+' kl. '+d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'})}
+function trackLine(p){
+  if(!p.track)return'';
+  const t=TRK[p.track.status]||[p.track.status,''];
+  return '<div class="trk '+t[1]+'"><b>'+esc(t[0])+'</b><span>· tjekket '+esc(fmtTime(p.track.checked))+'</span></div>'+
+    (p.track.event?'<div class="trk"><span>'+esc(p.track.event)+(p.track.location?', '+esc(p.track.location):'')+'</span></div>':'');
+}
+async function refreshAll(manual){
+  const btn=$('refreshBtn');
+  if(!TRACK_API){if(manual)toast('Automatisk status er ikke sat op endnu');return}
+  const active=packages.filter(p=>p.tn&&p.status!=='hentet');
+  if(!active.length){if(manual)toast('Ingen aktive pakker med pakkenummer');return}
+  btn.setAttribute('aria-busy','true');btn.textContent='Opdaterer…';
+  let moved=0,updated=0;
+  try{
+    const res=await fetch(TRACK_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({numbers:active.map(p=>p.tn)})});
+    const data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error||'Fejl '+res.status);
+    const now=Date.now();
+    for(const r of data.results||[]){
+      for(const p of packages.filter(x=>x.tn===r.number)){
+        p.track={status:r.status,event:r.event||'',location:r.location||'',time:r.time||'',checked:now};updated++;
+        const ns=statusFromTrack(r.status);
+        if(ns&&RANK[ns]>RANK[p.status]){p.status=ns;p.updated=now;moved++}
+      }
+    }
+    save();try{localStorage.setItem(LAST_KEY,String(now))}catch(e){}
+    render();
+    if(manual||moved)toast(moved?(moved===1?'1 pakke har skiftet status':moved+' pakker har skiftet status'):(updated===1?'1 pakke tjekket, ingen ændringer':updated+' pakker tjekket, ingen ændringer'));
+  }catch(e){if(manual)toast('Kunne ikke hente status lige nu')}
+  finally{btn.removeAttribute('aria-busy');btn.textContent='Opdater alle'}
+}
 
 /* ---------- Hændelser ---------- */
+$('refreshBtn').addEventListener('click',()=>refreshAll(true));
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render()}));
 $('addBtn').addEventListener('click',()=>openSheet(''));
 $('sheetBg').addEventListener('click',closeSheet);
@@ -376,6 +440,11 @@ let incoming='', pasteMode=false;
 try{const q=new URLSearchParams(location.search);incoming=q.get('t')||q.get('text')||'';pasteMode=q.has('indsaet')||q.has('paste');
   if(!incoming&&location.hash.startsWith('#t='))incoming=decodeURIComponent(location.hash.slice(3))}catch(e){}
 render();
+// Hent status, når appen åbnes (højst hvert 2. minut).
+function maybeRefresh(){try{if(Date.now()-(+localStorage.getItem(LAST_KEY)||0)>12e4)refreshAll(false)}catch(e){refreshAll(false)}}
+maybeRefresh();
+// iPhone holder ofte siden åben i baggrunden, så tjek også når den kommer frem igen.
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')maybeRefresh()});
 if(incoming){openSheet(incoming);try{history.replaceState(null,'',location.pathname)}catch(e){}}
 else if(pasteMode){
   // Åbnet fra genvejen, der har kopieret beskeden: ét tryk på knappen henter den ind.
