@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pakkeoverblik</title>
+<script>
+// Fanger adresser, hvor genvejen har kodet "?t=" forkert, og sender teksten videre til prototypen.
+(function(){
+  var raw = location.pathname + location.search + location.hash, txt = '';
+  var dec = raw;
+  for (var i = 0; i < 3; i++) { try { var d = decodeURIComponent(dec); if (d === dec) break; dec = d; } catch (e) { break; } }
+  var m = dec.match(/[?&#/]t=([\s\S]*)$/);
+  if (m) txt = m[1];
+  location.replace('/Pakker/' + (txt ? '?t=' + encodeURIComponent(txt) : ''));
+})();
+</script>
+</head>
+<body style="font-family:system-ui,sans-serif;padding:24px">
+<p>Åbner Pakkeoverblik… <a href="/Pakker/">Tryk her, hvis der ikke sker noget.</a></p>
+</body>
+</html>
