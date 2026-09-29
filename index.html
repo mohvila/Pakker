@@ -43,7 +43,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .list{margin-top:14px;display:flex;flex-direction:column;gap:12px}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative}
 .card .top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 0;gap:8px}
-.carrier{font-stretch:85%;font-weight:800;font-size:.95rem}
+.carrier{font-stretch:85%;font-weight:700;font-size:.9rem;color:var(--muted);white-space:nowrap}
+.pname{font-stretch:85%;font-weight:800;font-size:1.15rem;line-height:1.2;overflow-wrap:anywhere}
+.facts{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;margin:0;padding:8px 14px 12px}
+.facts dt{font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:2px}
+.facts dd{margin:0;word-break:break-all}
+.facts dd button{border:0;background:none;padding:0;font-weight:600;font-size:1rem;color:var(--ink);text-decoration:underline dotted;text-underline-offset:3px;text-align:left}
+.facts .nocode{color:var(--muted)}
+.facts .code{text-align:center}
+details.more{display:block;width:100%;min-width:0;margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
+details.more summary{cursor:pointer;font-weight:600;color:var(--muted);padding:8px 0}
 .shop{color:var(--muted);font-size:.9rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tn{padding:2px 14px 10px;font-size:.95rem;color:var(--muted);word-break:break-all}
 .tn button{border:0;background:none;padding:0;color:var(--ink);font-weight:600;text-decoration:underline dotted;text-underline-offset:3px}
@@ -71,7 +80,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media (prefers-reduced-motion:reduce){.sheet{transition:none}}
 .sheet h2{font-stretch:80%;font-weight:800;font-size:1.5rem;margin:0 0 4px}
 .sheet .hint{color:var(--muted);font-size:.9rem;margin:0 0 12px}
-textarea,input,select{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+textarea,input,select{box-sizing:border-box;width:100%;max-width:100%;min-width:0;display:block;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
 textarea{min-height:130px;resize:vertical}
 label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:12px 0 4px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -95,8 +104,8 @@ label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:1
 
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="paavej"><b id="c-paavej">0</b>På vej</button>
-    <button class="tab" role="tab" data-tab="klar"><b id="c-klar">0</b>Klar til afhentning</button>
-    <button class="tab" role="tab" data-tab="hentet"><b id="c-hentet">0</b>Hentet</button>
+    <button class="tab" role="tab" data-tab="klar"><b id="c-klar">0</b>Klar</button>
+    <button class="tab" role="tab" data-tab="hentet"><b id="c-hentet">0</b>Afhentet</button>
   </div>
 
   <div class="list" id="list"></div>
@@ -123,30 +132,33 @@ label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:1
   <div id="stepForm" hidden>
     <h2 id="formTitle">Tjek oplysningerne</h2>
     <div id="foundMsg"></div>
+    <label for="f-name">Navn på pakken</label>
+    <input id="f-name" autocomplete="off" placeholder="Fx Julegave til Anna eller Nye sko">
     <div class="row">
-      <div><label for="f-carrier">Fragtfirma</label>
+      <div><label for="f-carrier">Forsendelsesfirma</label>
         <select id="f-carrier"></select></div>
       <div><label for="f-status">Status</label>
         <select id="f-status">
           <option value="paavej">På vej</option>
-          <option value="klar">Klar til afhentning</option>
-          <option value="hentet">Hentet</option>
+          <option value="klar">Klar</option>
+          <option value="hentet">Afhentet</option>
         </select></div>
     </div>
-    <label for="f-tn">Trackingnummer</label>
+    <label for="f-tn">Pakkenummer</label>
     <input id="f-tn" autocomplete="off" autocapitalize="characters">
-    <label for="f-shop">Butik</label>
-    <input id="f-shop" autocomplete="off">
-    <label for="f-place">Afhentningssted</label>
-    <input id="f-place" autocomplete="off">
-    <div class="row">
-      <div><label for="f-code">Afhentningskode</label>
-        <input id="f-code" inputmode="numeric" autocomplete="off"></div>
-      <div><label for="f-deadline">Hentes senest</label>
-        <input id="f-deadline" type="date"></div>
-    </div>
-    <label for="f-note">Note</label>
-    <input id="f-note" autocomplete="off" placeholder="Fx indhold eller hvem der henter">
+    <label for="f-code">Bekræftelseskode</label>
+    <input id="f-code" autocomplete="off" autocapitalize="characters">
+    <details class="more" id="more">
+      <summary>Flere oplysninger</summary>
+      <label for="f-shop">Butik</label>
+      <input id="f-shop" autocomplete="off">
+      <label for="f-place">Afhentningssted</label>
+      <input id="f-place" autocomplete="off">
+      <label for="f-deadline">Hentes senest</label>
+      <input id="f-deadline" type="date">
+      <label for="f-note">Note</label>
+      <input id="f-note" autocomplete="off" placeholder="Fx indhold eller hvem der henter">
+    </details>
     <div class="btnrow">
       <button class="btn ghost" id="cancelBtn">Annullér</button>
       <span class="spacer"></span>
@@ -180,7 +192,7 @@ function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');
 
 /* ---------- Udtræk ---------- */
 function parse(text){
-  const r={carrier:'ukendt',tn:'',shop:'',place:'',code:'',deadline:'',status:'paavej',url:''};
+  const r={name:'',carrier:'ukendt',tn:'',shop:'',place:'',code:'',deadline:'',status:'paavej',url:''};
   const urls=text.match(/https?:\/\/[^\s<>"')]+/gi)||[];
   // Fragtfirma: domæner vejer tungest, derefter nøgleord
   for(const u of urls){for(const k in CARRIERS){const c=CARRIERS[k];if(c.dom&&c.dom.test(u)){r.carrier=k;r.url=u;break}}if(r.carrier!=='ukendt')break}
@@ -201,7 +213,7 @@ function parse(text){
   // Trackingnummer ud fra kendte formater
   if(!r.tn){const m=text.match(/\b[A-Z]{2}\d{9}[A-Z]{2}\b/)||text.match(/\b00\d{18}\b/)||text.match(/\b\d{11,20}\b/);if(m)r.tn=m[0]}
   // Afhentningskode
-  const code=text.match(/(afhentningskode|udleveringskode|pinkode|pin-kode|pin|kode|code)\s*(?:er|:|-)?\s*[:\-]?\s*(\d{3,8})\b/i);
+  const code=text.match(/(bekræftelseskode|verifikationskode|sikkerhedskode|afhentningskode|udleveringskode|pinkode|pin-kode|pin|kode|code)\s*(?:er|:|-)?\s*[:\-]?\s*(\d{3,8})\b/i);
   if(code&&code[2]!==r.tn)r.code=code[2];
   // Frist
   r.deadline=findDate(text);
@@ -217,6 +229,7 @@ function parse(text){
   // Butik
   const shop=text.match(/(?:ordre|bestilling|køb|pakke|forsendelse|levering)\s+(?:fra|hos)\s+([A-ZÆØÅ0-9][\wÆØÅæøå&.\-]*(?:\s+[A-ZÆØÅ][\wÆØÅæøå&.\-]*){0,2})/);
   if(shop&&!/postnord|gls|dao|bring|budbee|instabox/i.test(shop[1]))r.shop=shop[1].replace(/[.,]$/,'');
+  if(r.shop)r.name='Pakke fra '+r.shop;
   // Status
   if(/klar til afhentning|kan (nu )?(af)?hentes|ligger klar|klar til at blive hentet|er ankommet til (din |pakke)|er klar i/i.test(text))r.status='klar';
   else if(/er (blevet )?leveret|leveret til|afleveret ved|er afhentet/i.test(text))r.status='hentet';
@@ -246,7 +259,7 @@ function deadlineText(iso){const n=daysLeft(iso);if(n===null)return null;
   if(n===1)return{t:'Skal hentes senest i morgen',w:true};
   return{t:'Hentes senest '+f,w:n<=2}}
 function trackUrl(p){const c=CARRIERS[p.carrier]||CARRIERS.ukendt;if(c.url&&p.tn)return c.url(p.tn);return p.url||''}
-const NEXT={paavej:['klar','Klar til afhentning'],klar:['hentet','Markér som hentet'],hentet:['klar','Flyt tilbage']};
+const NEXT={paavej:['klar','Markér som klar'],klar:['hentet','Markér som afhentet'],hentet:['klar','Flyt tilbage til klar']};
 
 function render(){
   const counts={paavej:0,klar:0,hentet:0};packages.forEach(p=>counts[p.status]++);
@@ -259,16 +272,17 @@ function render(){
   else items.sort((a,b)=>b.updated-a.updated);
   const list=$('list');
   if(!items.length){
-    const msg={paavej:'Ingen pakker på vej. Del en forsendelsesmail eller SMS for at tilføje en.',klar:'Intet venter på at blive hentet.',hentet:'Pakker du har hentet, vises her.'}[tab];
+    const msg={paavej:'Ingen pakker på vej. Del en forsendelsesmail eller SMS for at tilføje en.',klar:'Intet venter på at blive hentet.',hentet:'Afhentede pakker vises her.'}[tab];
     list.innerHTML='<div class="empty"><p>'+msg+'</p>'+(tab==='paavej'?'<button class="btn primary" data-act="add">Tilføj pakke</button>':'')+'</div>';return}
   list.innerHTML=items.map(p=>{
     const c=CARRIERS[p.carrier]||CARRIERS.ukendt, dl=deadlineText(p.deadline), u=trackUrl(p), nx=NEXT[p.status];
-    const showPickup=p.status!=='hentet'&&(p.place||p.code||p.deadline);
+    const showPickup=p.status!=='hentet'&&(p.place||p.deadline);
+    const title=p.name||(p.shop?'Pakke fra '+p.shop:'Pakke uden navn');
     return '<article class="card">'+
-      '<div class="top"><span class="carrier">'+esc(c.name)+'</span><span class="shop">'+esc(p.shop)+'</span></div>'+
-      '<div class="tn">'+(p.tn?'<button data-act="copy" data-id="'+p.id+'" aria-label="Kopiér trackingnummer">'+esc(p.tn)+'</button>':'Intet trackingnummer')+'</div>'+
-      (showPickup?'<div class="pickup"><div><div class="place">'+(esc(p.place)||'Afhentningssted ikke angivet')+'</div>'+(dl?'<div class="deadline'+(dl.w?' warn':'')+'">'+esc(dl.t)+'</div>':'')+'</div>'+
-        (p.code?'<div class="code"><small>Kode</small><span>'+esc(p.code)+'</span></div>':'')+'</div>':'')+
+      '<div class="top"><span class="pname">'+esc(title)+'</span><span class="carrier">'+esc(c.name)+'</span></div>'+
+      '<dl class="facts"><div><dt>Pakkenummer</dt><dd>'+(p.tn?'<button data-act="copy" data-id="'+p.id+'" aria-label="Kopiér pakkenummer">'+esc(p.tn)+'</button>':'<span class="nocode">Ikke angivet</span>')+'</dd></div>'+
+      '<div><dt>Bekræftelseskode</dt><dd>'+(p.code?'<div class="code"><span>'+esc(p.code)+'</span></div>':'<span class="nocode">Ingen</span>')+'</dd></div></dl>'+
+      (showPickup?'<div class="pickup"><div><div class="place">'+(esc(p.place)||'Afhentningssted ikke angivet')+'</div>'+(dl?'<div class="deadline'+(dl.w?' warn':'')+'">'+esc(dl.t)+'</div>':'')+'</div></div>':'')+
       (p.note?'<div class="note">'+esc(p.note)+'</div>':'')+
       '<div class="actions"><button class="btn primary" data-act="move" data-to="'+nx[0]+'" data-id="'+p.id+'">'+nx[1]+'</button>'+
       (u?'<a class="btn" href="'+esc(u)+'" target="_blank" rel="noopener">Følg hos '+esc(c.name==='Ukendt fragtfirma'?'fragtfirma':c.name)+'</a>':'')+
@@ -285,16 +299,17 @@ function openSheet(prefill){
 function closeSheet(){$('sheetBg').classList.remove('open');$('sheet').classList.remove('open')}
 function fillForm(p){
   $('f-carrier').innerHTML=Object.keys(CARRIERS).map(k=>'<option value="'+k+'">'+CARRIERS[k].name+'</option>').join('');
-  $('f-carrier').value=p.carrier||'ukendt';$('f-status').value=p.status||'paavej';
+  $('f-name').value=p.name||'';$('f-carrier').value=p.carrier||'ukendt';$('f-status').value=p.status||'paavej';
   $('f-tn').value=p.tn||'';$('f-shop').value=p.shop||'';$('f-place').value=p.place||'';
   $('f-code').value=p.code||'';$('f-deadline').value=p.deadline||'';$('f-note').value=p.note||'';
+  $('more').open=!!(p.shop||p.place||p.deadline||p.note);
   $('stepPaste').hidden=true;$('stepForm').hidden=false}
 function runParse(){
   const text=$('raw').value.trim();
   if(!text){$('pasteMsg').innerHTML='<p class="found miss">Feltet er tomt. Indsæt teksten fra en mail eller SMS først.</p>';return}
   const r=parse(text);pendingUrl=r.url;
   const existing=r.tn&&packages.find(p=>p.tn===r.tn);
-  const found=[r.carrier!=='ukendt'&&'fragtfirma',r.tn&&'trackingnummer',r.place&&'afhentningssted',r.code&&'kode',r.deadline&&'frist'].filter(Boolean);
+  const found=[r.carrier!=='ukendt'&&'fragtfirma',r.tn&&'pakkenummer',r.code&&'bekræftelseskode',r.place&&'afhentningssted',r.deadline&&'frist'].filter(Boolean);
   if(existing){
     editingId=existing.id;
     const merged=Object.assign({},existing);
@@ -310,9 +325,9 @@ function runParse(){
   $('saveBtn').textContent=existing?'Gem ændringer':'Gem pakke';
 }
 function saveForm(){
-  const data={carrier:$('f-carrier').value,status:$('f-status').value,tn:$('f-tn').value.replace(/\s/g,'').toUpperCase(),
+  const data={name:$('f-name').value.trim(),carrier:$('f-carrier').value,status:$('f-status').value,tn:$('f-tn').value.replace(/\s/g,'').toUpperCase(),
     shop:$('f-shop').value.trim(),place:$('f-place').value.trim(),code:$('f-code').value.trim(),deadline:$('f-deadline').value,note:$('f-note').value.trim(),updated:Date.now()};
-  if(!data.tn&&!data.shop&&!data.place){toast('Udfyld mindst trackingnummer, butik eller afhentningssted');return}
+  if(!data.name&&!data.tn){toast('Giv pakken et navn eller udfyld pakkenummer');$('f-name').focus();return}
   if(editingId){const p=packages.find(x=>x.id===editingId);Object.assign(p,data);if(pendingUrl&&!p.url)p.url=pendingUrl;toast('Pakke opdateret')}
   else{packages.push(Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),url:pendingUrl||''},data));toast('Pakke gemt')}
   save();tab=data.status;closeSheet();render()}
@@ -336,7 +351,7 @@ $('list').addEventListener('click',e=>{
   if(act==='move'){p.status=b.dataset.to;p.updated=Date.now();save();render();toast(p.status==='hentet'?'Markeret som hentet':p.status==='klar'?'Flyttet til klar til afhentning':'Flyttet')}
   if(act==='edit'){openSheet('');editingId=p.id;fillForm(p);$('formTitle').textContent='Redigér pakke';$('foundMsg').innerHTML='';$('saveBtn').textContent='Gem ændringer'}
   if(act==='del'){if(confirm('Slet denne pakke?')){packages=packages.filter(x=>x.id!==p.id);save();render();toast('Pakke slettet')}}
-  if(act==='copy'){try{navigator.clipboard.writeText(p.tn).then(()=>toast('Trackingnummer kopieret'),()=>toast(p.tn))}catch(err){toast(p.tn)}}
+  if(act==='copy'){try{navigator.clipboard.writeText(p.tn).then(()=>toast('Pakkenummer kopieret'),()=>toast(p.tn))}catch(err){toast(p.tn)}}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 
