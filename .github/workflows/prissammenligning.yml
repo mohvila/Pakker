@@ -1,0 +1,47 @@
+name: Prissammenligning
+
+on:
+  schedule:
+    # Hver fredag kl. 05:17 UTC (07:17 dansk sommertid / 06:17 vintertid)
+    - cron: "17 5 * * 5"
+  workflow_dispatch:
+    inputs:
+      max_products:
+        description: "Kun de første N produkter (tom = alle)"
+        required: false
+      dry_run:
+        description: "Send ikke mail – gem kun rapporten"
+        type: boolean
+        default: false
+
+jobs:
+  sammenlign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install openpyxl
+      - name: Kør prissammenligning
+        env:
+          SHOP_URL: https://luxury-outdoor.dk
+          MAIL_TO: info@luxury-outdoor.dk
+          FIRST_SUPPLIERS: Lechuza
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          MAX_PRODUCTS: ${{ inputs.max_products }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python prissammenligning/prissammenligning.py
+      - name: Gem rapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prissammenligning
+          path: rapport/
+          retention-days: 60
