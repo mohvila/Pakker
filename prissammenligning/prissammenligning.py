@@ -4,7 +4,8 @@
 1. Henter alle produkter fra webshoppen (Shopify, WooCommerce eller sitemap + JSON-LD).
 2. Slår hvert produkt op på nettet (Google Shopping via SerpApi og/eller PriceRunner).
 3. Laver en rapport sorteret efter leverandør, med Lechuza først.
-4. Sender rapporten som mail (HTML + Excel + CSV) eller gemmer den lokalt (DRY_RUN=1).
+4. Gemmer rapporten som Markdown, Excel, CSV og HTML i OUT_DIR (seneste.* + arkiv/<dato>.*).
+   Er SMTP_HOST sat, sendes den desuden på mail.
 
 Indstillinger læses fra miljøvariabler, se README.md i samme mappe.
 """
@@ -33,7 +34,7 @@ MAIL_TO = os.environ.get("MAIL_TO", "info@luxury-outdoor.dk")
 MAX_PRODUCTS = int(os.environ.get("MAX_PRODUCTS", "0") or 0)
 MIN_MATCH = float(os.environ.get("MIN_MATCH", "0.55"))
 DELAY = float(os.environ.get("REQUEST_DELAY", "1.0"))
-OUT_DIR = os.environ.get("OUT_DIR", "rapport")
+OUT_DIR = os.environ.get("OUT_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "rapporter"))
 UA = "Mozilla/5.0 (compatible; LuxuryOutdoorPrisTjek/1.0; +" + SHOP_URL + ")"
 
 # Leverandører der genkendes i produktnavnet, hvis shoppen ikke selv angiver en.
@@ -429,7 +430,7 @@ def write_html(rows, date):
 <p><b>{total}</b> produkter tjekket · <b style="color:#b02a37">{dyrere}</b> dyrere end laveste pris online ·
 <b style="color:#1e7e34">{billigst}</b> billigst/samme pris · {ikke} ikke fundet eller uden pris.</p>
 <p>Sorteret efter leverandør ({e(', '.join(FIRST_SUPPLIERS))} først). Inden for hver leverandør står de varer
-hvor vi er dyrest øverst. Hele listen ligger også i den vedhæftede Excel-fil.</p>
+hvor vi er dyrest øverst. Hele listen findes også som Excel-fil.</p>
 <h3>Oversigt pr. leverandør</h3>
 <table cellpadding="4" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#ccc">
 <tr style="background:#2F4F3E;color:#fff"><th>Leverandør</th><th>Produkter</th><th>Vi er dyrere</th>
@@ -458,6 +459,43 @@ hvor vi er dyrest øverst. Hele listen ligger også i den vedhæftede Excel-fil.
         out.append("</table>")
     out.append('<p style="color:#888;margin-top:24px">Priserne er fundet automatisk og kan indeholde forkerte '
                'match (fx en anden størrelse eller farve). Tjek linket før prisen ændres.</p></body></html>')
+    return "\n".join(out)
+
+
+def md_cell(v):
+    return str(v or "").replace("|", "\\|").replace("\n", " ")
+
+
+def write_markdown(rows, date):
+    by_sup = {}
+    for r in rows:
+        by_sup.setdefault(r["supplier"], []).append(r)
+    dyrere = sum(r["status"] == "Vi er dyrere" for r in rows)
+    billigst = sum(r["status"] in ("Vi er billigst", "Samme pris") for r in rows)
+    out = [f"# Prissammenligning – {SHOP_HOST} – {date:%d-%m-%Y}", "",
+           f"**{len(rows)}** produkter tjekket · 🔴 **{dyrere}** dyrere end laveste pris online · "
+           f"🟢 **{billigst}** billigst/samme pris · {len(rows) - dyrere - billigst} ikke fundet eller uden pris.", "",
+           f"Sorteret efter leverandør ({', '.join(FIRST_SUPPLIERS)} først). Inden for hver leverandør står de varer, "
+           "hvor vi er dyrest, øverst. Hele listen findes også som [Excel](seneste.xlsx) og [CSV](seneste.csv).", "",
+           "## Oversigt pr. leverandør", "",
+           "| Leverandør | Produkter | Vi er dyrere | Vi er billigst | Ikke fundet |", "|---|--:|--:|--:|--:|"]
+    for sup, rs in by_sup.items():
+        d = sum(r["status"] == "Vi er dyrere" for r in rs)
+        b = sum(r["status"] in ("Vi er billigst", "Samme pris") for r in rs)
+        anchor = re.sub(r"[^\w\- ]", "", sup.lower()).replace(" ", "-")
+        out.append(f"| [{md_cell(sup)}](#{anchor}) | {len(rs)} | {d} | {b} | {len(rs) - d - b} |")
+    icons = {"Vi er dyrere": "🔴", "Vi er billigst": "🟢", "Samme pris": "🟢"}
+    for sup, rs in by_sup.items():
+        out += ["", f"## {md_cell(sup)}", "",
+                "| Produkt | Vores pris | Laveste online | Butik | Forskel | Status |", "|---|--:|--:|---|--:|---|"]
+        for r in rs:
+            name = f"[{md_cell(r['name'])}]({r['url']})" if r["url"] else md_cell(r["name"])
+            shop = f"[{md_cell(r['best_shop'])}]({r['best_url']})" if r["best_url"] else md_cell(r["best_shop"])
+            pct = f" ({r['diff_pct']:+.1f}%)".replace(".", ",") if r["diff_pct"] is not None else ""
+            out.append(f"| {name} | {kr(r['price'])} | {kr(r['best_price'])} | {shop} | {kr(r['diff'])}{pct} | "
+                       f"{icons.get(r['status'], '⚪')} {r['status']} |")
+    out += ["", "_Priserne er fundet automatisk og kan indeholde forkerte match (fx en anden størrelse eller farve). "
+            "Tjek linket, før prisen ændres._", ""]
     return "\n".join(out)
 
 
@@ -506,24 +544,26 @@ def main():
 
     stamp = f"{date:%Y-%m-%d}"
     html_body = write_html(rows, date)
-    attachments = [(f"prissammenligning-{stamp}.csv", write_csv(rows), "text", "csv")]
+    files = {"md": write_markdown(rows, date).encode("utf-8"), "html": html_body.encode("utf-8"),
+             "csv": write_csv(rows)}
     xlsx = write_xlsx(rows)
     if xlsx:
-        attachments.insert(0, (f"prissammenligning-{stamp}.xlsx", xlsx, "application",
-                               "vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+        files["xlsx"] = xlsx
 
-    os.makedirs(OUT_DIR, exist_ok=True)
-    with open(os.path.join(OUT_DIR, f"prissammenligning-{stamp}.html"), "w", encoding="utf-8") as f:
-        f.write(html_body)
-    for name, data, _, _ in attachments:
-        with open(os.path.join(OUT_DIR, name), "wb") as f:
-            f.write(data)
+    os.makedirs(os.path.join(OUT_DIR, "arkiv"), exist_ok=True)
+    for ext, data in files.items():
+        for path in (os.path.join(OUT_DIR, f"seneste.{ext}"), os.path.join(OUT_DIR, "arkiv", f"{stamp}.{ext}")):
+            with open(path, "wb") as f:
+                f.write(data)
+    print(f"Rapport gemt i {OUT_DIR}/seneste.* og arkiv/{stamp}.*", file=sys.stderr)
 
-    dyrere = sum(r["status"] == "Vi er dyrere" for r in rows)
-    subject = f"Prissammenligning {date:%d-%m-%Y}: {dyrere} af {len(rows)} varer er dyrere end online"
-    if os.environ.get("DRY_RUN") == "1":
-        print(f"DRY_RUN: rapport gemt i {OUT_DIR}/ – ingen mail sendt ({subject})", file=sys.stderr)
-    else:
+    if os.environ.get("SMTP_HOST") and os.environ.get("DRY_RUN") != "1":
+        dyrere = sum(r["status"] == "Vi er dyrere" for r in rows)
+        subject = f"Prissammenligning {date:%d-%m-%Y}: {dyrere} af {len(rows)} varer er dyrere end online"
+        attachments = [(f"prissammenligning-{stamp}.csv", files["csv"], "text", "csv")]
+        if xlsx:
+            attachments.insert(0, (f"prissammenligning-{stamp}.xlsx", xlsx, "application",
+                                   "vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
         send_mail(subject, html_body, attachments)
 
 

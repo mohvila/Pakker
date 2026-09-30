@@ -9,10 +9,12 @@ on:
       max_products:
         description: "Kun de første N produkter (tom = alle)"
         required: false
-      dry_run:
-        description: "Send ikke mail – gem kun rapporten"
-        type: boolean
-        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prissammenligning
 
 jobs:
   sammenlign:
@@ -27,21 +29,23 @@ jobs:
       - name: Kør prissammenligning
         env:
           SHOP_URL: https://luxury-outdoor.dk
-          MAIL_TO: info@luxury-outdoor.dk
           FIRST_SUPPLIERS: Lechuza
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          # Valgfrit: sæt SMTP-secrets, hvis rapporten også skal sendes på mail
+          MAIL_TO: info@luxury-outdoor.dk
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           MAX_PRODUCTS: ${{ inputs.max_products }}
-          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
         run: python prissammenligning/prissammenligning.py
-      - name: Gem rapporten
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: prissammenligning
-          path: rapport/
-          retention-days: 60
+      - name: Gem rapporten i repoet
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add prissammenligning/rapporter
+          git diff --cached --quiet && exit 0
+          git commit -m "Prissammenligning $(date +%d-%m-%Y)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
