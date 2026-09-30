@@ -32,7 +32,7 @@ SHOP_HOST = urllib.parse.urlparse(SHOP_URL).hostname or ""
 FIRST_SUPPLIERS = [s.strip() for s in os.environ.get("FIRST_SUPPLIERS", "Lechuza").split(",") if s.strip()]
 MAIL_TO = os.environ.get("MAIL_TO", "info@luxury-outdoor.dk")
 MAX_PRODUCTS = int(os.environ.get("MAX_PRODUCTS", "0") or 0)
-MIN_MATCH = float(os.environ.get("MIN_MATCH", "0.55"))
+MIN_MATCH = float(os.environ.get("MIN_MATCH", "0.7"))
 DELAY = float(os.environ.get("REQUEST_DELAY", "1.0"))
 OUT_DIR = os.environ.get("OUT_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "rapporter"))
 UA = "Mozilla/5.0 (compatible; LuxuryOutdoorPrisTjek/1.0; +" + SHOP_URL + ")"
@@ -250,6 +250,26 @@ def similarity(a, b):
     return max(overlap, ratio)
 
 
+COLORS = {"sort", "hvid", "grå", "grøn", "blå", "rød", "brun", "beige", "antracit", "taupe", "creme", "natur",
+          "gul", "orange", "lilla", "pink", "sølv", "guld", "black", "white", "grey", "gray", "green", "blue",
+          "red", "brown", "sand", "anthracite", "cream", "silver", "gold"}
+
+
+def is_identical(p, o):
+    """Kun identiske produkter: samme mærke, samme tal (størrelse/model), samme farve og ens navn."""
+    title = o["title"]
+    tt = set(norm(title))
+    brand = norm(p["supplier"])
+    if p["supplier"] != "Ukendt leverandør" and brand and not set(brand) <= tt:
+        return False
+    ours = set(norm(p["name"])) & COLORS
+    theirs = tt & COLORS
+    if ours and theirs and not ours & theirs:
+        return False
+    # Søgning på EAN giver sikrere match, så der kræves mindre lighed i navnet.
+    return similarity(p["name"], title) >= (0.4 if o.get("exact") else MIN_MATCH)
+
+
 def is_own_shop(seller, link):
     s = f"{seller} {link}".lower()
     return SHOP_HOST.replace("www.", "") in s or "luxury outdoor" in s or "luxury-outdoor" in s
@@ -316,9 +336,7 @@ def lookup(p):
         if res:
             offers += res
         time.sleep(DELAY)
-    # Søgning på EAN giver sikrere match, så der kræves mindre lighed i navnet.
-    matched = [o for o in offers
-               if similarity(p["name"], o["title"]) >= (0.3 if o.get("exact") else MIN_MATCH)]
+    matched = [o for o in offers if is_identical(p, o)]
     return matched, errors
 
 

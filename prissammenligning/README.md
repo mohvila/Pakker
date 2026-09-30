@@ -51,9 +51,15 @@ MAX_PRODUCTS=20 SERPAPI_KEY=... python prissammenligning/prissammenligning.py
 
 - **Produkter**: Scriptet prøver først Shopify (`/products.json`), derefter WooCommerce (`/wp-json/wc/store/v1/products`) og til sidst `sitemap.xml` med produktdata (JSON-LD) fra hver produktside.
   Leverandøren hentes fra shoppens *vendor/brand*. Mangler den, gættes den ud fra produktnavnet.
-- **Match**: Et tilbud tæller kun med, hvis navnet ligner vores. Alle tal i vores navn skal også findes i tilbuddets navn (størrelse eller model, fx *Cubico 40* ≠ *Cubico 30*). Findes der en EAN, søges der på den.
+- **Kun identiske produkter**: Et tilbud tæller kun med, hvis det er præcis samme vare:
+  - samme mærke står i navnet,
+  - alle tal i vores navn (størrelse eller model) findes også i tilbuddets navn, fx *Cubico 40* ≠ *Cubico 30*,
+  - farven er den samme, hvis begge navne nævner en farve, fx *sort* ≠ *hvid*,
+  - navnet ligner vores (mindst 70 %, `MIN_MATCH`).
+
+  Findes der en EAN, søges der på den, og så kræves der mindre lighed i navnet.
   Luxury-Outdoor's egne tilbud springes over.
 - **Status**: *Vi er dyrere*, *Vi er billigst*, *Samme pris*, *Ikke fundet online* eller *Fejl ved opslag*.
 
-Andre indstillinger (miljøvariabler): `FIRST_SUPPLIERS` (kommasepareret, fx `Lechuza,Weber`), `MIN_MATCH` (0–1, standard 0.55),
+Andre indstillinger (miljøvariabler): `FIRST_SUPPLIERS` (kommasepareret, fx `Lechuza,Weber`), `MIN_MATCH` (0–1, standard 0.7),
 `REQUEST_DELAY` (sekunder mellem opslag), `OUT_DIR` (hvor rapporten gemmes), `MAIL_TO`.
