@@ -57,6 +57,7 @@ details.more summary{cursor:pointer;font-weight:600;color:var(--muted);padding:8
 .refresh[aria-busy="true"]{opacity:.6;pointer-events:none}
 .trk{display:flex;gap:6px;align-items:baseline;padding:0 14px 4px;font-size:.88rem;color:var(--muted)}
 .trk b{color:var(--ink);font-weight:700}
+.foot button{border:0;background:none;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px}
 .trk.alert b{color:var(--alert)}
 .trk.ok b{color:var(--ok)}
 .shop{color:var(--muted);font-size:.9rem;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -116,7 +117,7 @@ label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin:1
   </div>
 
   <div class="list" id="list"></div>
-  <div class="foot">Prototype. Pakkerne gemmes kun i denne browser.</div>
+  <div class="foot">Prototype. Pakkerne gemmes kun i denne browser.<br><span id="gmailState"></span></div>
 </div>
 
 <button class="fab" id="addBtn">Tilføj pakke</button>
@@ -183,6 +184,11 @@ const KEY='pakkeoverblik.v1';
 // Tom = automatisk status er ikke sat op endnu.
 const TRACK_API='';
 const LAST_KEY='pakkeoverblik.lastRefresh';
+const CONN_KEY='pakkeoverblik.gmail';      // link til Gmail-scriptet (inkl. hemmelig nøgle) – kun på denne telefon
+const DEL_KEY='pakkeoverblik.deleted';     // pakker du har slettet, så de ikke kommer igen fra mail
+function getLS(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}}
+function setLS(k,v){try{v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}
+function deletedSet(){try{return new Set(JSON.parse(getLS(DEL_KEY,'[]')))}catch(e){return new Set()}}
 const CARRIERS={
   postnord:{name:'PostNord',kw:/postnord|post ?danmark|pakkeboks|døgnpost/i,dom:/postnord\./i,url:n=>'https://tracking.postnord.com/dk/?id='+encodeURIComponent(n)},
   gls:{name:'GLS',kw:/\bgls\b/i,dom:/gls-group\.|gls\.dk/i,url:n=>'https://gls-group.com/DK/da/find-pakke?match='+encodeURIComponent(n)},
@@ -409,7 +415,41 @@ function trackLine(p){
   return '<div class="trk '+t[1]+'"><b>'+esc(t[0])+'</b><span>· tjekket '+esc(fmtTime(p.track.checked))+'</span></div>'+
     (p.track.event?'<div class="trk"><span>'+esc(p.track.event)+(p.track.location?', '+esc(p.track.location):'')+'</span></div>':'');
 }
+async function syncGmail(manual){
+  const conn=getLS(CONN_KEY,'');
+  const btn=$('refreshBtn');
+  btn.setAttribute('aria-busy','true');btn.textContent='Opdaterer…';
+  let added=0,moved=0;
+  try{
+    const res=await fetch(conn+(conn.includes('?')?'&':'?')+'action='+(manual?'refresh':'list'));
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+    const del=deletedSet(), now=Date.now();
+    for(const sp of data.packages||[]){
+      if(del.has(sp.id)||(sp.tn&&del.has(sp.tn)))continue;
+      const local=packages.find(p=>p.id===sp.id||(sp.tn&&p.tn===sp.tn));
+      if(!local){packages.push(Object.assign({},sp,{updated:now}));added++;continue}
+      ['name','tn','code','place','deadline','shop','url'].forEach(k=>{if(!local[k]&&sp[k])local[k]=sp[k]});
+      if((!local.carrier||local.carrier==='ukendt')&&sp.carrier)local.carrier=sp.carrier;
+      if(sp.track&&(!local.track||(sp.track.checked||0)>(local.track.checked||0)))local.track=sp.track;
+      if(RANK[sp.status]>RANK[local.status]){local.status=sp.status;local.updated=now;moved++}
+    }
+    save();setLS(LAST_KEY,String(now));render();
+    const parts=[];
+    if(added)parts.push(added===1?'1 ny pakke fra mail':added+' nye pakker fra mail');
+    if(moved)parts.push(moved===1?'1 pakke har skiftet status':moved+' pakker har skiftet status');
+    if(parts.length||manual)toast(parts.length?parts.join(', '):'Ingen ændringer');
+  }catch(e){if(manual)toast(String(e.message).includes('adgang')?'Forbindelsen til Gmail virker ikke. Forbind igen.':'Kunne ikke hente fra Gmail lige nu')}
+  finally{btn.removeAttribute('aria-busy');btn.textContent='Opdater alle'}
+}
+function renderGmailState(){
+  const el=$('gmailState');
+  el.innerHTML=getLS(CONN_KEY,'')?'Forbundet med Gmail · <button id="disconnectBtn">Afbryd</button>':'Gmail er ikke forbundet';
+  const d=$('disconnectBtn');
+  if(d)d.addEventListener('click',()=>{if(confirm('Afbryd forbindelsen til Gmail på denne telefon?')){setLS(CONN_KEY,null);renderGmailState();toast('Forbindelsen er afbrudt')}});
+}
 async function refreshAll(manual){
+  if(getLS(CONN_KEY,''))return syncGmail(manual);
   const btn=$('refreshBtn');
   if(!TRACK_API){if(manual)toast('Automatisk status er ikke sat op endnu');return}
   const active=packages.filter(p=>p.tn&&p.status!=='hentet');
@@ -459,12 +499,16 @@ $('list').addEventListener('click',e=>{
     try{navigator.clipboard.readText().then(t=>go((t||'').trim()),()=>go(''))}catch(err){go('')}
     return}
   if(act==='edit'){openSheet('');editingId=p.id;fillForm(p);$('formTitle').textContent='Redigér pakke';$('foundMsg').innerHTML='';$('saveBtn').textContent='Gem ændringer'}
-  if(act==='del'){if(confirm('Slet denne pakke?')){packages=packages.filter(x=>x.id!==p.id);save();render();toast('Pakke slettet')}}
+  if(act==='del'){if(confirm('Slet denne pakke?')){const d=deletedSet();d.add(p.id);if(p.tn)d.add(p.tn);setLS(DEL_KEY,JSON.stringify([...d].slice(-300)));packages=packages.filter(x=>x.id!==p.id);save();render();toast('Pakke slettet')}}
   if(act==='copy'){try{navigator.clipboard.writeText(p.tn).then(()=>toast('Pakkenummer kopieret'),()=>toast(p.tn))}catch(err){toast(p.tn)}}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 
 // Tekst sendt fra iPhone-genvej via ?t=... eller #t=...
+// Forbind med Gmail-scriptet via linket fra mailen (?forbind=...)
+try{const fq=new URLSearchParams(location.search).get('forbind');
+  if(fq&&/^https:\/\/script\.google(usercontent)?\.com\//.test(fq)){setLS(CONN_KEY,fq);setLS(LAST_KEY,null);history.replaceState(null,'',location.pathname);toast('Forbundet med Gmail')}}catch(e){}
+renderGmailState();
 let incoming='', pasteMode=false;
 try{const q=new URLSearchParams(location.search);incoming=q.get('t')||q.get('text')||'';pasteMode=q.has('indsaet')||q.has('paste');
   if(!incoming&&location.hash.startsWith('#t='))incoming=decodeURIComponent(location.hash.slice(3))}catch(e){}
